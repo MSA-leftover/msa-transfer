@@ -1,0 +1,89 @@
+spring:
+  profiles:
+    group:
+      "prod": "msa-base, msa-hikari-default"
+      "dev": "msa-base, msa-hikari-default"
+      "local": "msa-base, msa-local-database"
+    active: local #Default is Local
+---
+server:
+  port: 8088
+
+spring:
+  #Dev tools Endpoints
+  devtools:
+    restart:
+      exclude: static/**, public/**, resources/**
+  #Common Profiles
+  config:
+    activate:
+      on-profile: msa-base
+  #Swagger configurations
+  mvc:
+    pathmatch:
+      matching-strategy: ant_path_matcher
+  #Database Naming rule
+  jpa:
+    hibernate:
+      naming: # camelCase -> under_score_case, '.' -> '_', UPPER_CASE is not allowed. changed to lower_case
+        implicit-strategy: org.springframework.boot.orm.jpa.hibernate.SpringImplicitNamingStrategy
+        physical-strategy: org.hibernate.boot.model.naming.PhysicalNamingStrategyStandardImpl
+    open-in-view: false #About Lazy fetch
+#Actuator
+management:
+  endpoint:
+    #    logfile:
+    #      external-file: ~/logback.log
+    health:
+      show-details: always
+  endpoints:
+    web:
+      exposure:
+        include: health,loggers,metrics,mappings,threaddump,conditions,info,heapdump
+      base-path: /api/actuator
+      path-mapping:
+        loggers: logs
+        httptrace: trace
+info:
+  spring:
+    framework:
+      version: ${spring-framework.version}
+  java:
+    version: ${java.version}
+---
+spring:
+  config:
+    activate:
+      on-profile: msa-hikari-default
+  datasource:
+    hikari: #DB Connection Pool - Careful Deadlock issue
+      transaction-isolation: TRANSACTION_REPEATABLE_READ # Not use SERIALIZABLE
+      maximum-pool-size: 10
+      minimum-idle: 10 # Hikari Powerfully recommended. Same value as maximum-pool-size
+      connection-timeout: 5000 #5s Timeout.
+      validation-timeout: 3000 #3s Timeout
+      connection-test-query: SELECT 1
+      idle-timeout: 60000
+      max-lifetime: 1800000
+      pool-name: msa_hikari_pool
+---
+spring:
+  config:
+    activate:
+      on-profile: msa-local-database
+  datasource:
+    driver-class-name: org.h2.Driver
+    url: jdbc:h2:mem:test;MODE=MariaDB;DATABASE_TO_LOWER=TRUE
+    jdbcUrl: jdbc:h2:mem:test;MODE=MariaDB;DATABASE_TO_LOWER=TRUE
+    username: msa_test
+    password: msa
+  h2:
+    console:
+      enabled: true
+  jpa:
+    hibernate:
+      ddl-auto: create
+    database: h2
+  sql:
+    init:
+      mode: embedded
